@@ -54,6 +54,43 @@ void *read_file_contents(const char *filename) {
   return file_content;
 }
 
+int get_shstrtab_index(Elf64_Ehdr *ehdr) {
+  /*
+   * Find a non-allocated STRTAB section, non-allocated to differentiate the
+   * dynstr table
+   */
+  Elf64_Shdr *shdr = (Elf64_Shdr *)((void *)ehdr + ehdr->e_shoff);
+  for (int i = 0; i < ehdr->e_shnum; ++i) {
+    if (shdr->sh_type == SHT_STRTAB &&
+        (shdr->sh_flags & SHF_ALLOC) != SHF_ALLOC) {
+      return i;
+    }
+    shdr++;
+  }
+  return -1;
+}
+
+char *get_shstrtab(Elf64_Ehdr *ehdr) {
+  int shstrtab_index = get_shstrtab_index(ehdr);
+  if (shstrtab_index == -1) {
+    fprintf(stderr, "[-] Unable to find SHSTRTAB\n");
+    return NULL;
+  }
+  printf("[+] SHSTRTAB index: %d\n", shstrtab_index);
+
+  Elf64_Shdr *shdr = (Elf64_Shdr *)((void *)ehdr + ehdr->e_shoff);
+  shdr += shstrtab_index;
+  return (char *)((void *)ehdr + shdr->sh_offset);
+}
+
+void print_section_names(Elf64_Ehdr *ehdr, char *shstrtab) {
+  Elf64_Shdr *shdr = (Elf64_Shdr *)((void *)ehdr + ehdr->e_shoff);
+  for (int i = 0; i < ehdr->e_shnum; ++i) {
+    printf("[+] %d -> %s\n", i, &shstrtab[shdr->sh_name]);
+    ++shdr;
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     fprintf(stderr, "[-] Usage: %s <ELF_FILE>\n", argv[0]);
@@ -75,8 +112,20 @@ int main(int argc, char **argv) {
   Elf64_Ehdr *ehdr = (Elf64_Ehdr *)file_content;
   printf("[+] Entrypoint: %p\n", (void *)ehdr->e_entry);
 
+  bool error = false;
+  char *shstrtab = get_shstrtab(ehdr);
+  if (shstrtab == NULL) {
+    error = true;
+    goto cleanup;
+  }
+
+  print_section_names(ehdr, shstrtab);
+
 cleanup:
   printf("[+] Cleaning up\n");
   free(file_content);
+  if (error) {
+    return EXIT_FAILURE;
+  }
   return EXIT_SUCCESS;
 }
