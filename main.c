@@ -99,6 +99,8 @@ int main(int argc, char **argv) {
 
   const char *filename = argv[1];
   if (!file_exists(filename)) {
+    fprintf(stderr, "[-] Unable to work with %s as it doesn't exist\n",
+            filename);
     return EXIT_FAILURE;
   }
   printf("[+] Working on %s\n", filename);
