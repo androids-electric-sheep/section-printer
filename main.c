@@ -54,28 +54,8 @@ void *read_file_contents(const char *filename) {
   return file_content;
 }
 
-int get_shstrtab_index(Elf64_Ehdr *ehdr) {
-  /*
-   * Find a non-allocated STRTAB section, non-allocated to differentiate the
-   * dynstr table
-   */
-  Elf64_Shdr *shdr = (Elf64_Shdr *)((void *)ehdr + ehdr->e_shoff);
-  for (int i = 0; i < ehdr->e_shnum; ++i) {
-    if (shdr->sh_type == SHT_STRTAB &&
-        (shdr->sh_flags & SHF_ALLOC) != SHF_ALLOC) {
-      return i;
-    }
-    shdr++;
-  }
-  return -1;
-}
-
 char *get_shstrtab(Elf64_Ehdr *ehdr) {
-  int shstrtab_index = get_shstrtab_index(ehdr);
-  if (shstrtab_index == -1) {
-    fprintf(stderr, "[-] Unable to find SHSTRTAB\n");
-    return NULL;
-  }
+  int shstrtab_index = ehdr->e_shstrndx;
   printf("[+] SHSTRTAB index: %d\n", shstrtab_index);
 
   Elf64_Shdr *shdr = (Elf64_Shdr *)((void *)ehdr + ehdr->e_shoff);
